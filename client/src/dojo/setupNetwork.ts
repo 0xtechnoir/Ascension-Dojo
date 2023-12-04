@@ -29,7 +29,7 @@ export async function setupNetwork() {
     contractComponents: defineContractComponents(world),
 
     // Define the graph SDK instance.
-    graphSdk: () => getSdk(new GraphQLClient(VITE_PUBLIC_TORII)),
+    graphSdk: () => getSdk(new GraphQLClient(VITE_PUBLIC_TORII + "/graphql")),
 
     // Execute function.
     execute: async (
