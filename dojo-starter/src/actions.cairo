@@ -13,7 +13,7 @@ trait IActions<TContractState> {
 mod actions {
     use starknet::{ContractAddress, get_caller_address};
     use ascension::models::{
-        Position, Moves, Direction, Vec2, GameSession, PieceType, Square, HealthPoints, RangePoints,
+        Position, Direction, Vec2, GameSession, PieceType, Square, HealthPoints, RangePoints,
         ActionPoints, Alive
     };
     use ascension::utils::calc_next_position;
@@ -167,12 +167,14 @@ mod tests {
     use debug::PrintTrait;
     use dojo::world::{IWorldDispatcher, IWorldDispatcherTrait};
     use dojo::test_utils::{spawn_test_world, deploy_contract};
-    use ascension::models::{position, moves, health_points, range_points, action_points, alive};
+    use ascension::models::{position, health_points, range_points, action_points, alive};
     use ascension::models::{
-        Position, Moves, Direction, Vec2, GameSession, PieceType, Square, HealthPoints, RangePoints,
+        Position, Direction, Vec2, GameSession, PieceType, Square, HealthPoints, RangePoints,
         ActionPoints, Alive
     };
     use super::{actions, IActionsDispatcher, IActionsDispatcherTrait};
+
+
 
     #[test]
     #[available_gas(3000000000000000)]
@@ -241,7 +243,7 @@ mod tests {
     #[available_gas(3000000000000000)]
     fn test_move() {
         // set up world
-        let mut models = array![position::TEST_CLASS_HASH, moves::TEST_CLASS_HASH];
+        let mut models = array![position::TEST_CLASS_HASH, action_points::TEST_CLASS_HASH];
         let world = spawn_test_world(models);
         let contract_address = world
             .deploy_contract('salt', actions::TEST_CLASS_HASH.try_into().unwrap());
@@ -257,16 +259,46 @@ mod tests {
         assert(position.vec.x == 0, 'position x is wrong');
         assert(position.vec.y == 0, 'position y is wrong');
 
-        // player is at (0,0) so should not be able to move left
-        actions_system.move(Direction::Left, game_id);
-        let new_position = get!(world, (caller, game_id), Position);
-        assert(new_position.vec.x == 0, 'position x is wrong');
-        assert(new_position.vec.y == 0, 'position y is wrong');
-
         // call move with direction right and check new position
         actions_system.move(Direction::Right, game_id);
         let new_position = get!(world, (caller, game_id), Position);
         assert(new_position.vec.x == 1, 'position x is wrong');
         assert(new_position.vec.y == 0, 'position y is wrong');
+
+        // check new square has piece type player
+        let square = get!(world, (game_id, Vec2 { x: 1, y: 0 }), Square);
+        assert(square.piece == PieceType::Player, 'piece is wrong');
+
+        // check old square now has piece type None
+        let square = get!(world, (game_id, Vec2 { x: 0, y: 0 }), Square);
+        assert(square.piece == PieceType::None, 'piece is wrong');
+
+        // check player actions points have been reduced by 1
+        let action_points = get!(world, caller, ActionPoints);
+        'action_points'.print();
+        action_points.print();
+        assert(action_points.ap == 2, 'action points should equal 2');
     }
+
+    #[test]
+    #[should_panic(expected: ('Cannot move off the board',))]
+    #[available_gas(3000000000000000)]
+    fn test_illegal_moves() {
+        // set up world
+        let mut models = array![position::TEST_CLASS_HASH];
+        let world = spawn_test_world(models);
+        let contract_address = world
+            .deploy_contract('salt', actions::TEST_CLASS_HASH.try_into().unwrap());
+        let actions_system = IActionsDispatcher { contract_address };
+
+        // spawn game and player
+        let caller = starknet::contract_address_const::<0x0>();
+        let game_id = 123456;
+        actions_system.spawn_game(game_id, 1699744590);
+        actions_system.spawn(game_id);
+
+        // player is at (0,0) so should not be able to move left
+        actions_system.move(Direction::Left, game_id);
+    }
+
 }

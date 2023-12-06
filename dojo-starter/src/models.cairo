@@ -96,3 +96,10 @@ impl PieceTypePrintImpl of PrintTrait<PieceType> {
         }
     }
 }
+
+impl ActionPointsPrintImpl of PrintTrait<ActionPoints> {
+    fn print(self: ActionPoints) {
+        'ActionPoints: '.print();
+        self.ap.print();
+    }
+}
